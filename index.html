@@ -2,218 +2,239 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#09090b" />
-  <title>PulseClip AI — Live Stream Auto-Clipper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseClip AI — Viral Stream Clipper</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen font-sans selection:bg-yellow-400 selection:text-black">
+<body class="bg-zinc-950 text-zinc-100 min-h-screen font-sans selection:bg-amber-400 selection:text-black">
 
-  <header class="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-10">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
-        <h1 class="text-lg sm:text-xl font-bold tracking-tight">PulseClip <span class="text-yellow-400">AI</span></h1>
+  <div class="max-w-4xl mx-auto px-4 py-10">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <span class="inline-block px-3 py-1 text-xs font-semibold tracking-wider uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full mb-2">
+          Gemini 2.5 Flash + Faster-Whisper + FFmpeg
+        </span>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+          PulseClip <span class="text-amber-400">AI</span>
+        </h1>
+        <p class="text-zinc-400 text-sm mt-1">
+          Auto-detect hype moments, reframe to 9:16 vertical, and burn animated pop-up captions.
+        </p>
       </div>
-      <span class="text-[11px] bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full border border-zinc-700">
-        Cloud 9:16 Auto-Clipper
-      </span>
     </div>
-  </header>
 
-  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-    <div class="grid md:grid-cols-12 gap-6 sm:gap-8">
+    <!-- Main Control Card -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
+      <!-- Mode Tabs -->
+      <div class="flex gap-2 mb-6 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800">
+        <button id="tabUrl" onclick="switchTab('url')" class="flex-1 py-2.5 text-sm font-semibold rounded-lg bg-amber-400 text-black transition">
+          Paste Stream / Video URL
+        </button>
+        <button id="tabFile" onclick="switchTab('file')" class="flex-1 py-2.5 text-sm font-semibold rounded-lg text-zinc-400 hover:text-white transition">
+          Upload Video File (100% Block-Free)
+        </button>
+      </div>
 
-      <div class="md:col-span-7 space-y-6">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-xl">
-          <h2 class="text-base sm:text-lg font-semibold mb-1">Paste Stream Link or Upload Video</h2>
-          <p class="text-xs sm:text-sm text-zinc-400 mb-5">Finds the #1 viral hook with Gemini AI, reframes to 9:16, and burns word-by-word pop-up captions.</p>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-2">Option 1: Stream / Video Link (Twitch, Kick, YouTube)</label>
-              <input id="streamUrl" type="url" placeholder="https://..." 
-                class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-400 transition" />
-            </div>
-
-            <div class="relative flex py-1 items-center">
-              <div class="flex-grow border-t border-zinc-800"></div>
-              <span class="flex-shrink mx-3 text-xs text-zinc-500 uppercase">OR</span>
-              <div class="flex-grow border-t border-zinc-800"></div>
-            </div>
-
-            <div>
-              <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-2">Option 2: Upload Video From Phone / PC (Bypasses YouTube IP Blocks)</label>
-              <input id="videoFile" type="file" accept="video/*"
-                class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-300 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-yellow-400 file:text-black hover:file:bg-yellow-300" />
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-2">9:16 Framing Style</label>
-                <select id="cropStyle" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-400">
-                  <option value="center">Center Crop (IRL / Podcast)</option>
-                  <option value="split">Split-Screen (Gameplay + Facecam)</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-2">Watch Buffer (Seconds)</label>
-                <input id="duration" type="number" value="120" min="30" max="900"
-                  class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
-              </div>
-            </div>
-
-            <details class="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-400">
-              <summary class="cursor-pointer font-medium text-zinc-300">Advanced: Paste YouTube Cookies (if YouTube blocks cloud IP)</summary>
-              <textarea id="cookiesTxt" rows="3" placeholder="Paste Netscape cookies.txt content here if YouTube asks to sign in..."
-                class="w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-200 focus:outline-none focus:border-yellow-400"></textarea>
-            </details>
-
-            <button onclick="startClipping()" id="submitBtn"
-              class="w-full bg-yellow-400 hover:bg-yellow-300 active:scale-[0.99] text-black font-bold py-3.5 rounded-xl transition shadow-lg shadow-yellow-400/10">
-              ⚡ Launch AI Clipper Bot
-            </button>
-          </div>
+      <!-- URL Input Section -->
+      <div id="urlSection" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">YouTube, Twitch, Kick, or Direct MP4 Link</label>
+          <input id="streamUrl" type="url" placeholder="https://youtu.be/DcTxNSbeO_4"
+            class="w-full px-4 py-3.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400" />
         </div>
 
-        <div id="statusCard" class="hidden bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6">
-          <div class="flex items-center justify-between mb-3">
-            <span id="statusText" class="text-sm font-medium text-yellow-400 animate-pulse">Initializing...</span>
-            <span id="progressPercent" class="text-xs font-mono text-zinc-400">0%</span>
-          </div>
-          <div class="w-full bg-zinc-950 h-2.5 rounded-full overflow-hidden border border-zinc-800">
-            <div id="progressBar" class="bg-yellow-400 h-full transition-all duration-500" style="width: 0%"></div>
-          </div>
+        <!-- Optional Cookie Bypass Accordion -->
+        <details class="bg-zinc-950/70 border border-zinc-800/80 rounded-xl p-3 text-xs">
+          <summary class="cursor-pointer font-medium text-amber-400 select-none">
+            Optional: Getting "Blocked by host IP" on YouTube? Paste cookies.txt here
+          </summary>
+          <p class="text-zinc-400 mt-2 mb-2">
+            Because Render uses shared cloud IPs, YouTube may block unauthenticated requests. Export cookies from a secondary YouTube account using the "Get cookies.txt LOCALLY" browser extension and paste the contents below:
+          </p>
+          <textarea id="cookiesTxt" rows="4" placeholder="# Netscape HTTP Cookie File..."
+            class="w-full p-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 font-mono text-xs focus:outline-none focus:border-amber-400"></textarea>
+        </details>
+      </div>
+
+      <!-- File Upload Section -->
+      <div id="fileSection" class="hidden space-y-4">
+        <div class="border-2 border-dashed border-zinc-700 hover:border-amber-400 rounded-xl p-8 text-center transition">
+          <input id="videoFile" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska" class="hidden" onchange="updateFileName()" />
+          <label for="videoFile" class="cursor-pointer block">
+            <div class="text-amber-400 font-semibold text-base mb-1">Click to select an MP4 / MKV / MOV video file</div>
+            <div id="fileNameDisplay" class="text-zinc-500 text-xs">Bypasses YouTube cloud IP blocks completely</div>
+          </label>
         </div>
       </div>
 
-      <div class="md:col-span-5">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 flex flex-col items-center justify-center min-h-[420px]">
-          <div id="emptyState" class="text-center space-y-3 px-4">
-            <div class="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center mx-auto text-2xl">📱</div>
-            <p class="text-sm text-zinc-400">Your edited 9:16 viral clip with word-by-word pop-up captions will appear here ready to save to your phone.</p>
-          </div>
-
-          <div id="resultCard" class="hidden w-full space-y-4">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-green-500/20 text-green-400 border border-green-500/30">
-                Virality: <span id="viralScore">95</span>/100
-              </span>
-              <span class="text-xs font-medium px-2.5 py-1 rounded bg-yellow-500/15 text-yellow-300 border border-yellow-500/30">
-                9:16 Vertical HD
-              </span>
-            </div>
-
-            <h3 id="clipTitle" class="font-bold text-base text-white"></h3>
-            <p id="clipReason" class="text-xs text-zinc-400"></p>
-
-            <video id="videoPreview" controls playsinline class="w-full rounded-xl border border-zinc-800 bg-black aspect-[9/16] max-h-[380px] mx-auto"></video>
-
-            <a id="downloadBtn" href="#" download
-              class="block text-center w-full bg-white hover:bg-zinc-200 text-black font-bold py-3.5 rounded-xl transition">
-              ⬇️ Save Ready-to-Post Clip (.MP4)
-            </a>
-          </div>
-        </div>
-      </div>
-
+      <!-- Action Button -->
+      <button id="generateBtn" onclick="startGeneration()"
+        class="w-full mt-6 py-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-base tracking-wide transition shadow-lg shadow-amber-400/10">
+        Generate Viral 9:16 Hype Clips
+      </button>
     </div>
-  </main>
+
+    <!-- Status / Progress Box -->
+    <div id="statusCard" class="hidden mt-6 bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+      <div class="flex justify-between items-center mb-3">
+        <span id="statusText" class="text-sm font-medium text-zinc-200">Starting...</span>
+        <span id="statusPct" class="text-xs font-bold text-amber-400">0%</span>
+      </div>
+      <div class="w-full bg-zinc-800 h-2.5 rounded-full overflow-hidden">
+        <div id="progressBar" class="bg-amber-400 h-full transition-all duration-300" style="width: 5%"></div>
+      </div>
+    </div>
+
+    <!-- Results Grid -->
+    <div id="resultsSection" class="hidden mt-8">
+      <h2 class="text-xl font-bold mb-4">Generated Vertical Clips (9:16)</h2>
+      <div id="clipsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    </div>
+  </div>
 
   <script>
-    let pollInterval = null;
+    let currentMode = 'url';
+    let pollTimer = null;
 
-    async function startClipping() {
-      const url = document.getElementById("streamUrl").value.trim();
-      const fileInput = document.getElementById("videoFile");
-      const crop_style = document.getElementById("cropStyle").value;
-      const duration = parseInt(document.getElementById("duration").value);
-      const cookies_txt = document.getElementById("cookiesTxt").value.trim();
+    function switchTab(mode) {
+      currentMode = mode;
+      const tabUrl = document.getElementById('tabUrl');
+      const tabFile = document.getElementById('tabFile');
+      const urlSection = document.getElementById('urlSection');
+      const fileSection = document.getElementById('fileSection');
 
-      if (!url && (!fileInput.files || fileInput.files.length === 0)) {
-        alert("Please paste a stream URL or choose a video file from your device.");
-        return;
+      if (mode === 'url') {
+        tabUrl.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg bg-amber-400 text-black transition";
+        tabFile.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg text-zinc-400 hover:text-white transition";
+        urlSection.classList.remove('hidden');
+        fileSection.classList.add('hidden');
+      } else {
+        tabFile.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg bg-amber-400 text-black transition";
+        tabUrl.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg text-zinc-400 hover:text-white transition";
+        fileSection.classList.remove('hidden');
+        urlSection.classList.add('hidden');
+      }
+    }
+
+    function updateFileName() {
+      const fileInput = document.getElementById('videoFile');
+      const display = document.getElementById('fileNameDisplay');
+      if (fileInput.files.length > 0) {
+        display.textContent = "Selected: " + fileInput.files[0].name;
+        display.className = "text-emerald-400 text-xs font-medium mt-1";
+      }
+    }
+
+    async function startGeneration() {
+      const formData = new FormData();
+      const btn = document.getElementById('generateBtn');
+
+      if (currentMode === 'url') {
+        const url = document.getElementById('streamUrl').value.trim();
+        const cookies = document.getElementById('cookiesTxt').value.trim();
+        if (!url) {
+          alert("Please paste a video URL first.");
+          return;
+        }
+        formData.append('url', url);
+        if (cookies) formData.append('cookies_txt', cookies);
+      } else {
+        const fileInput = document.getElementById('videoFile');
+        if (!fileInput.files.length) {
+          alert("Please select a video file to upload.");
+          return;
+        }
+        formData.append('file', fileInput.files[0]);
       }
 
-      document.getElementById("submitBtn").disabled = true;
-      document.getElementById("submitBtn").innerText = "🤖 AI Bot Working...";
-      document.getElementById("statusCard").classList.remove("hidden");
-      document.getElementById("statusText").className = "text-sm font-medium text-yellow-400 animate-pulse";
-      document.getElementById("emptyState").classList.remove("hidden");
-      document.getElementById("resultCard").classList.add("hidden");
+      btn.disabled = true;
+      btn.textContent = "Processing...";
+      document.getElementById('statusCard').classList.remove('hidden');
+      document.getElementById('resultsSection').classList.add('hidden');
+      updateStatusUI("Uploading & initializing job...", 10, false);
 
       try {
-        let res;
-        if (fileInput.files && fileInput.files.length > 0) {
-          const formData = new FormData();
-          formData.append("file", fileInput.files[0]);
-          formData.append("crop_style", crop_style);
-          res = await fetch("/api/upload", { method: "POST", body: formData });
-        } else {
-          res = await fetch("/api/clip", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url, mode: "vod", crop_style, duration, cookies_txt })
-          });
-        }
+        const res = await fetch('/api/process', { method: 'POST', body: formData });
         const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to start job");
         pollStatus(data.job_id);
       } catch (err) {
-        alert("Server connection failed. Check if your cloud server is awake.");
-        resetButton();
+        updateStatusUI("Error: " + err.message, 100, true);
+        btn.disabled = false;
+        btn.textContent = "Generate Viral 9:16 Hype Clips";
       }
+    }
+
+    function updateStatusUI(message, pct, isError) {
+      const textEl = document.getElementById('statusText');
+      const pctEl = document.getElementById('statusPct');
+      const barEl = document.getElementById('progressBar');
+
+      textEl.textContent = message;
+      textEl.className = isError ? "text-sm font-medium text-red-400" : "text-sm font-medium text-zinc-200";
+      pctEl.textContent = pct + "%";
+      barEl.style.width = pct + "%";
+      barEl.className = isError ? "bg-red-500 h-full transition-all duration-300" : "bg-amber-400 h-full transition-all duration-300";
     }
 
     function pollStatus(jobId) {
-      pollInterval = setInterval(async () => {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
         try {
           const res = await fetch(`/api/status/${jobId}`);
-          const job = await res.json();
+          const data = await res.json();
 
-          document.getElementById("statusText").innerText = job.status;
-
-          if (job.progress >= 0) {
-            document.getElementById("progressPercent").innerText = `${job.progress}%`;
-            document.getElementById("progressBar").style.width = `${job.progress}%`;
+          if (data.status === 'failed') {
+            clearInterval(pollTimer);
+            updateStatusUI(data.message, data.progress || 25, true);
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = false;
+            btn.textContent = "Generate Viral 9:16 Hype Clips";
+          } else if (data.status === 'completed') {
+            clearInterval(pollTimer);
+            updateStatusUI(data.message, 100, false);
+            renderClips(data.clips || []);
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = false;
+            btn.textContent = "Generate Viral 9:16 Hype Clips";
           } else {
-            clearInterval(pollInterval);
-            document.getElementById("statusText").className = "text-sm font-medium text-red-400";
-            resetButton();
-          }
-
-          if (job.progress === 100) {
-            clearInterval(pollInterval);
-            resetButton();
-            showResult(job);
+            updateStatusUI(data.message, data.progress || 25, false);
           }
         } catch (e) {
-          console.error("Polling error:", e);
+          console.error(e);
         }
-      }, 2000);
+      }, 2500);
     }
 
-    function showResult(job) {
-      document.getElementById("emptyState").classList.add("hidden");
-      document.getElementById("resultCard").classList.remove("hidden");
-      document.getElementById("viralScore").innerText = job.virality_score;
-      document.getElementById("clipTitle").innerText = job.hook_title;
-      document.getElementById("clipReason").innerText = job.reason;
+    function renderClips(clips) {
+      const grid = document.getElementById('clipsGrid');
+      const section = document.getElementById('resultsSection');
+      grid.innerHTML = '';
 
-      const video = document.getElementById("videoPreview");
-      video.src = job.video_url;
-      video.load();
+      clips.forEach((clip) => {
+        const card = document.createElement('div');
+        card.className = "bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Virality Score: ${clip.virality_score}/100
+              </span>
+              <span class="text-xs text-zinc-400">${clip.duration}s</span>
+            </div>
+            <h3 class="font-bold text-base text-white mb-1">${clip.title}</h3>
+            <p class="text-xs text-zinc-400 mb-3">${clip.reason}</p>
+            <video controls playsinline class="w-full rounded-xl bg-black aspect-[9/16] max-h-[420px] object-contain mb-4" src="${clip.url}"></video>
+          </div>
+          <a href="${clip.url}" download class="block w-full text-center py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold text-white transition">
+            Download 9:16 MP4 Clip
+          </a>
+        `;
+        grid.appendChild(card);
+      });
 
-      const dlBtn = document.getElementById("downloadBtn");
-      dlBtn.href = job.video_url;
-    }
-
-    function resetButton() {
-      const btn = document.getElementById("submitBtn");
-      btn.disabled = false;
-      btn.innerText = "⚡ Launch AI Clipper Bot";
+      section.classList.remove('hidden');
     }
   </script>
 </body>
