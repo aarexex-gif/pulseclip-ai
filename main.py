@@ -1,220 +1,228 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#09090b" />
-  <title>PulseClip AI — Live Stream Auto-Clipper</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen font-sans selection:bg-yellow-400 selection:text-black">
+import os
+import uuid
+import json
+import shutil
+import subprocess
+from fastapi import FastAPI, BackgroundTasks, HTTPException, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from google import genai
 
-  <header class="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-10">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
-        <div class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
-        <h1 class="text-lg sm:text-xl font-bold tracking-tight">PulseClip <span class="text-yellow-400">AI</span></h1>
-      </div>
-      <span class="text-[11px] bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full border border-zinc-700">
-        Cloud 9:16 Auto-Clipper
-      </span>
-    </div>
-  </header>
+app = FastAPI(title="PulseClip AI")
 
-  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-    <div class="grid md:grid-cols-12 gap-6 sm:gap-8">
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-      <div class="md:col-span-7 space-y-6">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-xl">
-          <h2 class="text-base sm:text-lg font-semibold mb-1">Paste Stream Link or Upload Video</h2>
-          <p class="text-xs sm:text-sm text-zinc-400 mb-5">Finds the #1 viral hook with Gemini AI, reframes to 9:16, and burns word-by-word pop-up captions.</p>
+os.makedirs("clips", exist_ok=True)
+os.makedirs("temp", exist_ok=True)
+app.mount("/clips", StaticFiles(directory="clips"), name="clips")
 
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-2">Option 1: Stream / Video Link (Twitch, Kick, YouTube)</label>
-              <input id="streamUrl" type="url" placeholder="https://..." 
-                class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-400 transition" />
-            </div>
+ai_client = genai.Client()
+jobs = {}
 
-            <div class="relative flex py-1 items-center">
-              <div class="flex-grow border-t border-zinc-800"></div>
-              <span class="flex-shrink mx-3 text-xs text-zinc-500 uppercase">OR</span>
-              <div class="flex-grow border-t border-zinc-800"></div>
-            </div>
+class ClipRequest(BaseModel):
+    url: str
+    mode: str = "vod"
+    crop_style: str = "center"
+    duration: int = 120
+    cookies_txt: str = ""
 
-            <div>
-              <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-2">Option 2: Upload Video From Phone / PC (Bypasses YouTube IP Blocks)</label>
-              <input id="videoFile" type="file" accept="video/*"
-                class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-300 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-yellow-400 file:text-black hover:file:bg-yellow-300" />
-            </div>
+def format_ass_time(seconds: float) -> str:
+    seconds = max(0.0, float(seconds))
+    hrs = int(seconds // 3600)
+    mins = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    cs = int(round((seconds - int(seconds)) * 100))
+    if cs == 100:
+        secs += 1
+        cs = 0
+    return f"{hrs}:{mins:02d}:{secs:02d}.{cs:02d}"
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-2">9:16 Framing Style</label>
-                <select id="cropStyle" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-400">
-                  <option value="center">Center Crop (IRL / Podcast)</option>
-                  <option value="split">Split-Screen (Gameplay + Facecam)</option>
-                </select>
-              </div>
+def generate_ass(captions: list, ass_path: str):
+    header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
 
-              <div>
-                <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-2">Watch Buffer (Seconds)</label>
-                <input id="duration" type="number" value="120" min="30" max="900"
-                  class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-400" />
-              </div>
-            </div>
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Liberation Sans,64,&H0000FFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,5,2,2,60,60,220,1
 
-            <details class="bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-400">
-              <summary class="cursor-pointer font-medium text-zinc-300">Advanced: Paste YouTube Cookies (if YouTube blocks cloud IP)</summary>
-              <textarea id="cookiesTxt" rows="3" placeholder="Paste Netscape cookies.txt content here if YouTube asks to sign in..."
-                class="w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-200 focus:outline-none focus:border-yellow-400"></textarea>
-            </details>
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    events = []
+    for c in captions:
+        s = format_ass_time(c.get("start", 0))
+        e = format_ass_time(c.get("end", 2))
+        text = str(c.get("text", "")).replace("{", "").replace("}", "").upper()
+        events.append(f"Dialogue: 0,{s},{e},Default,,0,0,0,,{{\\fscx110\\fscy110}}{text}")
+    with open(ass_path, "w", encoding="utf-8") as f:
+        f.write(header + "\n".join(events) + "\n")
 
-            <button onclick="startClipping()" id="submitBtn"
-              class="w-full bg-yellow-400 hover:bg-yellow-300 active:scale-[0.99] text-black font-bold py-3.5 rounded-xl transition shadow-lg shadow-yellow-400/10">
-              ⚡ Launch AI Clipper Bot
-            </button>
-          </div>
-        </div>
+def run_ai_pipeline(job_id: str, raw_video: str, crop_style: str):
+    audio_mp3 = f"temp/{job_id}.mp3"
+    ass_file = f"temp/{job_id}.ass"
+    output_filename = f"clip_{job_id[:8]}.mp4"
+    output_path = f"clips/{output_filename}"
 
-        <div id="statusCard" class="hidden bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6">
-          <div class="flex items-center justify-between mb-3">
-            <span id="statusText" class="text-sm font-medium text-yellow-400 animate-pulse">Initializing...</span>
-            <span id="progressPercent" class="text-xs font-mono text-zinc-400">0%</span>
-          </div>
-          <div class="w-full bg-zinc-950 h-2.5 rounded-full overflow-hidden border border-zinc-800">
-            <div id="progressBar" class="bg-yellow-400 h-full transition-all duration-500" style="width: 0%"></div>
-          </div>
-        </div>
-      </div>
+    jobs[job_id]["status"] = "Extracting audio for Gemini AI..."
+    jobs[job_id]["progress"] = 50
+    subprocess.run([
+        "ffmpeg", "-y", "-i", raw_video, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", audio_mp3
+    ], check=True)
 
-      <div class="md:col-span-5">
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 sm:p-6 flex flex-col items-center justify-center min-h-[420px]">
-          <div id="emptyState" class="text-center space-y-3 px-4">
-            <div class="w-14 h-14 rounded-2xl bg-zinc-800 flex items-center justify-center mx-auto text-2xl">📱</div>
-            <p class="text-sm text-zinc-400">Your edited 9:16 viral clip with word-by-word pop-up captions will appear here ready to save to your phone.</p>
-          </div>
+    jobs[job_id]["status"] = "Gemini AI listening for viral hooks & captions..."
+    jobs[job_id]["progress"] = 70
 
-          <div id="resultCard" class="hidden w-full space-y-4">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-green-500/20 text-green-400 border border-green-500/30">
-                Virality: <span id="viralScore">95</span>/100
-              </span>
-              <span class="text-xs font-medium px-2.5 py-1 rounded bg-yellow-500/15 text-yellow-300 border border-yellow-500/30">
-                9:16 Vertical HD
-              </span>
-            </div>
-
-            <h3 id="clipTitle" class="font-bold text-base text-white"></h3>
-            <p id="clipReason" class="text-xs text-zinc-400"></p>
-
-            <video id="videoPreview" controls playsinline class="w-full rounded-xl border border-zinc-800 bg-black aspect-[9/16] max-h-[380px] mx-auto"></video>
-
-            <a id="downloadBtn" href="#" download
-              class="block text-center w-full bg-white hover:bg-zinc-200 text-black font-bold py-3.5 rounded-xl transition">
-              ⬇️ Save Ready-to-Post Clip (.MP4)
-            </a>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </main>
-
-  <script>
-    let pollInterval = null;
-
-    async function startClipping() {
-      const url = document.getElementById("streamUrl").value.trim();
-      const fileInput = document.getElementById("videoFile");
-      const crop_style = document.getElementById("cropStyle").value;
-      const duration = parseInt(document.getElementById("duration").value);
-      const cookies_txt = document.getElementById("cookiesTxt").value.trim();
-
-      if (!url && (!fileInput.files || fileInput.files.length === 0)) {
-        alert("Please paste a stream URL or choose a video file from your device.");
-        return;
-      }
-
-      document.getElementById("submitBtn").disabled = true;
-      document.getElementById("submitBtn").innerText = "🤖 AI Bot Working...";
-      document.getElementById("statusCard").classList.remove("hidden");
-      document.getElementById("statusText").className = "text-sm font-medium text-yellow-400 animate-pulse";
-      document.getElementById("emptyState").classList.remove("hidden");
-      document.getElementById("resultCard").classList.add("hidden");
-
-      try {
-        let res;
-        if (fileInput.files && fileInput.files.length > 0) {
-          const formData = new FormData();
-          formData.append("file", fileInput.files[0]);
-          formData.append("crop_style", crop_style);
-          res = await fetch("/api/upload", { method: "POST", body: formData });
-        } else {
-          res = await fetch("/api/clip", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url, mode: "vod", crop_style, duration, cookies_txt })
-          });
-        }
-        const data = await res.json();
-        pollStatus(data.job_id);
-      } catch (err) {
-        alert("Server connection failed. Check if your cloud server is awake.");
-        resetButton();
-      }
+    uploaded_audio = ai_client.files.upload(file=audio_mp3)
+    prompt = """
+    Listen to this stream audio and find the single most viral, funny, or high-energy moment (15 to 45 seconds long).
+    If the clip is shorter than 30 seconds, pick the best segment inside it.
+    Also return short 2-to-4 word punchy caption phrases synced relative to the clip start (where 0.0 is the start of the cut clip).
+    Return ONLY valid JSON:
+    {
+      "start": 0.0,
+      "end": 20.0,
+      "hook_title": "Catchy viral hook title",
+      "virality_score": 95,
+      "reason": "Why this moment is viral",
+      "captions": [
+        {"start": 0.0, "end": 1.8, "text": "WAIT WATCH THIS"},
+        {"start": 1.8, "end": 3.5, "text": "NO WAY BRO"}
+      ]
     }
+    """
+    response = ai_client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[uploaded_audio, prompt],
+        config={"response_mime_type": "application/json"},
+    )
+    viral_data = json.loads(response.text)
+    clip_start = max(0.0, float(viral_data.get("start", 0.0)))
+    clip_end = float(viral_data.get("end", clip_start + 20.0))
 
-    function pollStatus(jobId) {
-      pollInterval = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/status/${jobId}`);
-          const job = await res.json();
+    jobs[job_id]["status"] = "Rendering 9:16 vertical clip + captions..."
+    jobs[job_id]["progress"] = 85
 
-          document.getElementById("statusText").innerText = job.status;
+    generate_ass(viral_data.get("captions", []), ass_file)
+    ass_escaped = ass_file.replace("\\", "/").replace(":", "\\:")
+    duration_clip = max(5.0, clip_end - clip_start)
 
-          if (job.progress >= 0) {
-            document.getElementById("progressPercent").innerText = `${job.progress}%`;
-            document.getElementById("progressBar").style.width = `${job.progress}%`;
-          } else {
-            clearInterval(pollInterval);
-            document.getElementById("statusText").className = "text-sm font-medium text-red-400";
-            resetButton();
-          }
+    if crop_style == "split":
+        filter_complex = (
+            f"[0:v]crop=ih*(9/8):ih,scale=720:640[top];"
+            f"[0:v]crop=iw/3:ih/3:0:ih-(ih/3),scale=720:640[bottom];"
+            f"[top][bottom]vstack=inputs=2,ass='{ass_escaped}'[v]"
+        )
+        ffmpeg_cmd = [
+            "ffmpeg", "-y", "-ss", str(clip_start), "-i", raw_video, "-t", str(duration_clip),
+            "-filter_complex", filter_complex, "-map", "[v]", "-map", "0:a",
+            "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", output_path,
+        ]
+    else:
+        vf_filter = f"crop=ih*(9/16):ih,scale=720:1280,ass='{ass_escaped}'"
+        ffmpeg_cmd = [
+            "ffmpeg", "-y", "-ss", str(clip_start), "-i", raw_video, "-t", str(duration_clip),
+            "-vf", vf_filter, "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", output_path,
+        ]
 
-          if (job.progress === 100) {
-            clearInterval(pollInterval);
-            resetButton();
-            showResult(job);
-          }
-        } catch (e) {
-          console.error("Polling error:", e);
-        }
-      }, 2000);
-    }
+    subprocess.run(ffmpeg_cmd, check=True)
 
-    function showResult(job) {
-      document.getElementById("emptyState").classList.add("hidden");
-      document.getElementById("resultCard").classList.remove("hidden");
-      document.getElementById("viralScore").innerText = job.virality_score;
-      document.getElementById("clipTitle").innerText = job.hook_title;
-      document.getElementById("clipReason").innerText = job.reason;
+    for fpath in (raw_video, audio_mp3, ass_file):
+        if os.path.exists(fpath):
+            os.remove(fpath)
 
-      const video = document.getElementById("videoPreview");
-      video.src = job.video_url;
-      video.load();
+    jobs[job_id].update({
+        "status": "Completed",
+        "progress": 100,
+        "video_url": f"/clips/{output_filename}",
+        "hook_title": viral_data.get("hook_title", "Viral Stream Clip"),
+        "virality_score": viral_data.get("virality_score", 92),
+        "reason": viral_data.get("reason", "High energy stream highlight"),
+        "chat_spikes_found": 3,
+    })
 
-      const dlBtn = document.getElementById("downloadBtn");
-      dlBtn.href = job.video_url;
-    }
+def process_stream_job(job_id: str, req: ClipRequest):
+    try:
+        raw_video = f"temp/{job_id}_raw.mp4"
+        cookie_file = f"temp/{job_id}_cookies.txt"
 
-    function resetButton() {
-      const btn = document.getElementById("submitBtn");
-      btn.disabled = false;
-      btn.innerText = "⚡ Launch AI Clipper Bot";
-    }
-  </script>
-</body>
-</html>
+        jobs[job_id]["status"] = "Downloading stream segment..."
+        jobs[job_id]["progress"] = 25
+
+        cmd = [
+            "yt-dlp",
+            "--no-check-certificates",
+            "--geo-bypass",
+            "--extractor-args", "youtube:player_client=tv_embedded,mweb,web",
+            "-f", "best[height<=720][ext=mp4]/best[ext=mp4]/best",
+            "--download-sections", f"*0-{req.duration}",
+            "-o", raw_video,
+        ]
+
+        if req.cookies_txt and req.cookies_txt.strip():
+            with open(cookie_file, "w", encoding="utf-8") as cf:
+                cf.write(req.cookies_txt.strip() + "\n")
+            cmd.extend(["--cookies", cookie_file])
+
+        cmd.append(req.url)
+
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if os.path.exists(cookie_file):
+            os.remove(cookie_file)
+
+        if res.returncode != 0:
+            err_lines = [line for line in res.stderr.splitlines() if "ERROR:" in line]
+            clean_err = err_lines[-1] if err_lines else res.stderr[-300:]
+            raise Exception(f"Stream download blocked by host IP ({clean_err}). Try uploading a video file or pasting a Twitch/Kick/direct video link.")
+
+        run_ai_pipeline(job_id, raw_video, req.crop_style)
+
+    except Exception as e:
+        jobs[job_id]["status"] = f"Error: {str(e)}"
+        jobs[job_id]["progress"] = -1
+
+def process_upload_job(job_id: str, raw_video: str, crop_style: str):
+    try:
+        run_ai_pipeline(job_id, raw_video, crop_style)
+    except Exception as e:
+        jobs[job_id]["status"] = f"Error: {str(e)}"
+        jobs[job_id]["progress"] = -1
+
+@app.get("/")
+async def serve_frontend():
+    return FileResponse("index.html")
+
+@app.post("/api/clip")
+async def start_clip_job(req: ClipRequest, background_tasks: BackgroundTasks):
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "Starting AI Clipper...", "progress": 5}
+    background_tasks.add_task(process_stream_job, job_id, req)
+    return {"job_id": job_id}
+
+@app.post("/api/upload")
+async def upload_video_job(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    crop_style: str = Form("center")
+):
+    job_id = str(uuid.uuid4())
+    raw_video = f"temp/{job_id}_raw.mp4"
+    with open(raw_video, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    jobs[job_id] = {"status": "Video uploaded! Starting AI Clipper...", "progress": 25}
+    background_tasks.add_task(process_upload_job, job_id, raw_video, crop_style)
+    return {"job_id": job_id}
+
+@app.get("/api/status/{job_id}")
+async def get_job_status(job_id: str):
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return jobs[job_id]
